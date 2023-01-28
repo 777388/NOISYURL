@@ -1,22 +1,30 @@
+import os
 import urllib.parse
 import random
 import sys
-import requests
+print("python3 noisy.py url")
+url = sys.argv[1]
 
-def add_noise_to_url(url: str) -> str:
-    parsed_url = urllib.parse.urlparse(url)
-    query = urllib.parse.parse_qs(parsed_url.query)
-    for key, value in query.items():
-        # Add random byte noise to the value
-        noise = bytes([random.randint(0, 255) for _ in range(3)])
-        query[key] = [value[0] + noise.decode()]
-    # Update the query string and return the modified URL
-    new_query = urllib.parse.urlencode(query, doseq=True)
-    return parsed_url._replace(query=new_query).geturl()
-original_url = sys.argv[1]
-noisy_url = add_noise_to_url(original_url)
+parsed_url = urllib.parse.urlsplit(url)
+query = parsed_url.query
 
+# creates a dictionary of parameters and their values
+parameters = urllib.parse.parse_qs(query)
 
-r = requests.get(noisy_url)
-print(r.text)
+noise_value = os.urandom(random.randint(32,128))
 
+for key, value in parameters.items():
+    value =  bytes(value[0], "utf-8")
+    # add the noise value to the value
+    value += noise_value
+    parameters[key] = value
+
+# rebuild the query string with the modified parameters
+query = urllib.parse.urlencode(parameters, doseq=True)
+
+# rebuild the URL with the modified query string
+url = urllib.parse.urlunsplit((parsed_url.scheme, parsed_url.netloc, parsed_url.path, query, parsed_url.fragment))
+
+curl_command = f"curl -L -X GET {url}"
+r = os.popen(curl_command).read()
+print(r)
